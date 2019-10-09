@@ -10,6 +10,26 @@ const App = () => {
   const [data, setData] = useState({});
   const [cartActive, setCart] = useState(false);
   const [cartInfo, setCartInfo] = useState([]);
+  const [inventory, setInventory] = useState({});
+
+  useEffect(() => {
+    const fetchInventory = async () => {
+      const response = await fetch('./data/items.json');
+      const json = await response.json();
+      setInventory(json);
+    };
+
+    fetchInventory();
+  }, []);
+
+  const inCart = (productId) => {
+    for (i = 0; i < cartInfo.length; i += 1) {
+      if (cartInfo[i].productId === productId) {
+        return i;
+      }
+    }
+    return -1;
+  }
 
   const useRenderUpdate = () => {
     const [value, set] = useState(true);
@@ -35,20 +55,12 @@ const App = () => {
   }, []);
 
   const addCartItem = (productId, size) => {
-    let i;
-    let found = false;
-    let content = cartInfo;
-    for (i = 0; i < content.length; i += 1) {
-      if (content[i].productId === productId) {
-        found = true;
-        break;
-      }
-    }
-    if (found) {
-      content[i][size] += 1;
+    const index = inCart(productId);
+    if (index !== -1) {
+      cartInfo[index][size] += 1;
     }
     else {
-      content.push({
+      cartInfo.push({
         productId: productId,
         product: id2product[productId],
         'S': 0,
@@ -56,28 +68,20 @@ const App = () => {
         'L': 0,
         'XL': 0,
       });
-      content[content.length - 1][size] += 1;
+      cartInfo[cartInfo.length - 1][size] += 1;
     }
-    setCartInfo(content);
+    setCartInfo(cartInfo);
     setCart(true);
     renderUpdate();
   };
 
   const removeCartItem = (productId, size) => {
-    let i;
-    let found = false;
-    let content = cartInfo;
-    for (i = 0; i < content.length; i += 1) {
-      if (content[i].productId === productId) {
-        found = true;
-        break;
-      }
-    }
-    if (found) {
-      content[i][size] = content[i][size] > 0 ? content[i][size] - 1 : 0;
+    const index = inCart(productId);
+    if (index !== -1) {
+      cartInfo[index][size] = cartInfo[index][size] > 0 ? cartInfo[index][size] - 1 : 0;
     }
     else {
-      content.push({
+      cartInfo.push({
         productId: productId,
         product: id2product[productId],
         'S': 0,
@@ -85,10 +89,21 @@ const App = () => {
         'L': 0,
         'XL': 0,
       });
-      content[i][size] = content[i][size] > 0 ? content[i][size] - 1 : 0;
+      cartInfo[index][size] = cartInfo[index][size] > 0 ? cartInfo[index][size] - 1 : 0;
     }
-    setCartInfo(content);
+    setCartInfo(cartInfo);
     renderUpdate();
+  };
+
+  const computeRemaining = (productId) => {
+    const index = inCart(productId);
+    const remaining = {
+      'S': inventory[productId] ? (index === -1 ? (inventory[productId]['S']) : (inventory[productId]['S'] - cartInfo[index]['S'])) : 0,
+      'M': inventory[productId] ? (index === -1 ? (inventory[productId]['M']) : (inventory[productId]['M'] - cartInfo[index]['M'])) : 0,
+      'L': inventory[productId] ? (index === -1 ? (inventory[productId]['L']) : (inventory[productId]['L'] - cartInfo[index]['L'])) : 0,
+      'XL': inventory[productId] ? (index === -1 ? (inventory[productId]['XL']) : (inventory[productId]['XL'] - cartInfo[index]['XL'])) : 0,
+    };
+    return remaining;
   };
 
   return (
@@ -121,7 +136,7 @@ const App = () => {
         </Column>
         {products.map(product =>
           <Column size='one-third'>
-            <Product product={product} addToCart={addCartItem} />
+            <Product product={product} addToCart={addCartItem} remaining={ computeRemaining(product.sku) } />
           </Column>
         )}
       </Column.Group>
